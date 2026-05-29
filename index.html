@@ -733,6 +733,14 @@ function pillClass(type) {
   return { City:'pill-city', Local:'pill-local', 'Up Country':'pill-upcountry',
            'Other Town':'pill-othertown', Other:'pill-other' }[type] || 'pill-other';
 }
+function fmtDate(d) {
+  if (!d) return '—';
+  // d is YYYY-MM-DD from Supabase — display as DD/MM/YYYY
+  const parts = d.split('-');
+  if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+  return d;
+}
+
 function fmtMoney(n) {
   if (n == null || n === '') return '—';
   return '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
@@ -749,7 +757,7 @@ function renderTable() {
   }
   tbody.innerHTML = displayedRecords.map(r => `
     <tr>
-      <td>${r.date || '—'}</td>
+      <td>${fmtDate(r.date)}</td>
       <td><span class="mono">${r.vehicle_number || '—'}</span></td>
       <td>${r.owner_name || '—'}</td>
       <td>${r.vehicle_name || '—'}</td>
