@@ -608,7 +608,7 @@ function clearForm() {
   document.getElementById('owner-hint').style.display   = 'none';
   document.getElementById('calc-banner').style.display  = 'none';
   document.getElementById('manual-banner').style.display= 'none';
-  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('f-date').value = getTodayStr();
 }
 
 // ── Save record ─────────────────────────────────────────────────────────────
@@ -735,8 +735,9 @@ function pillClass(type) {
 }
 function fmtDate(d) {
   if (!d) return '—';
-  // d is YYYY-MM-DD from Supabase — display as DD/MM/YYYY
-  const parts = d.split('-');
+  // Supabase returns YYYY-MM-DD — take only the date part (strip time if present)
+  const datePart = String(d).split('T')[0];
+  const parts = datePart.split('-');
   if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
   return d;
 }
@@ -823,8 +824,14 @@ function toast(msg, type) {
   setTimeout(() => el.remove(), 3000);
 }
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function getTodayStr() {
+  const t = new Date();
+  return t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+}
+
 // ── Init ────────────────────────────────────────────────────────────────────
-document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+document.getElementById('f-date').value = getTodayStr();
 fetchRecords();
 </script>
 </body>
