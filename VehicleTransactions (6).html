@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VehicleLog — Transaction Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --c-bg:         #F5F4F0;
+  --c-surface:    #FFFFFF;
+  --c-border:     #E2E0D8;
+  --c-border2:    #C8C5BB;
+  --c-text:       #1A1916;
+  --c-muted:      #6B6960;
+  --c-hint:       #A09D94;
+  --c-accent:     #2B5CE6;
+  --c-accent-bg:  #EEF2FD;
+  --c-accent-bd:  #B8C9F8;
+  --c-success:    #1A7F4B;
+  --c-success-bg: #E8F5EE;
+  --c-success-bd: #6EE7B7;
+  --c-warn:       #92400E;
+  --c-warn-bg:    #FEF3C7;
+  --c-warn-bd:    #FCD34D;
+  --c-danger:     #BE123C;
+  --c-danger-bg:  #FFF1F2;
+  --r:            10px;
+  --r-sm:         6px;
+  --shadow:       0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:    0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--c-bg); color: var(--c-text); min-height: 100vh; font-size: 14px; }
+
+/* ── Topbar ── */
+.topbar {
+  background: var(--c-surface); border-bottom: 1px solid var(--c-border);
+  padding: 0 1.5rem; height: 56px; display: flex; align-items: center;
+  justify-content: space-between; position: sticky; top: 0; z-index: 50;
+  box-shadow: var(--shadow);
+}
+.topbar-brand { display: flex; align-items: center; gap: 10px; }
+.brand-icon {
+  width: 32px; height: 32px; background: var(--c-accent); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.brand-name { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.brand-sub  { font-size: 11px; color: var(--c-muted); }
+.topbar-right { font-size: 12px; color: var(--c-muted); }
+
+/* ── Main ── */
+.main { padding: 1.5rem; max-width: 1100px; margin: 0 auto; width: 100%; }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex; gap: 4px; background: var(--c-surface);
+  border: 1px solid var(--c-border); border-radius: var(--r);
+  padding: 4px; width: fit-content; margin-bottom: 1.25rem;
+}
+.tab {
+  padding: 7px 18px; border-radius: 7px; font-size: 13px; font-weight: 500;
+  cursor: pointer; border: none; background: transparent; color: var(--c-muted);
+  transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+  font-family: 'DM Sans', sans-serif;
+}
+.tab.active { background: var(--c-accent); color: #fff; }
+.tab:hover:not(.active) { background: var(--c-bg); color: var(--c-text); }
+.tab-badge {
+  font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600;
+  background: var(--c-bg); color: var(--c-muted);
+}
+.tab.active .tab-badge { background: rgba(255,255,255,0.25); color: #fff; }
+
+/* ── Cards ── */
+.card {
+  background: var(--c-surface); border: 1px solid var(--c-border);
+  border-radius: var(--r); padding: 1.25rem 1.5rem; margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+.card-title {
+  font-size: 11px; font-weight: 600; color: var(--c-muted); letter-spacing: 0.07em;
+  text-transform: uppercase; margin-bottom: 1rem; padding-bottom: 10px;
+  border-bottom: 1px solid var(--c-border); display: flex; align-items: center; gap: 6px;
+}
+
+/* ── Grid ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 1.25rem; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px 1.25rem; }
+
+/* ── Fields ── */
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 12px; font-weight: 500; color: var(--c-muted); }
+.field input, .field select, .field textarea {
+  height: 38px; padding: 0 11px; border: 1px solid var(--c-border);
+  border-radius: var(--r-sm); font-size: 13px; font-family: 'DM Sans', sans-serif;
+  color: var(--c-text); background: var(--c-surface); outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s; width: 100%;
+  appearance: none; -webkit-appearance: none;
+}
+.field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6960' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+  padding-right: 28px;
+}
+.field textarea { height: 80px; padding: 9px 11px; resize: vertical; font-family: 'DM Sans', sans-serif; }
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--c-accent); box-shadow: 0 0 0 3px rgba(43,92,230,0.1);
+}
+.field input.auto-field {
+  background: var(--c-accent-bg); border-color: var(--c-accent-bd);
+  color: var(--c-accent); font-family: 'DM Mono', monospace; cursor: default;
+}
+.field-hint { font-size: 11px; color: var(--c-hint); margin-top: 2px; }
+.field-hint.auto { color: var(--c-accent); font-weight: 500; }
+#vname-other-wrap { margin-top: 6px; display: none; }
+
+/* ── Banners ── */
+.banner {
+  display: flex; align-items: flex-start; gap: 8px; padding: 9px 12px;
+  border-radius: var(--r-sm); font-size: 12px; margin-bottom: 1rem;
+  border: 1px solid; line-height: 1.5;
+}
+.banner.info  { background: var(--c-accent-bg); border-color: var(--c-accent-bd); color: var(--c-accent); }
+.banner.warn  { background: var(--c-warn-bg);   border-color: var(--c-warn-bd);   color: var(--c-warn); }
+.banner-icon  { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+
+/* ── Buttons ── */
+.btn {
+  height: 38px; padding: 0 18px; border-radius: var(--r-sm); font-size: 13px;
+  font-weight: 500; cursor: pointer; border: 1px solid; display: inline-flex;
+  align-items: center; gap: 6px; transition: all 0.15s;
+  font-family: 'DM Sans', sans-serif; white-space: nowrap; text-decoration: none;
+}
+.btn-primary { background: var(--c-accent); border-color: var(--c-accent); color: #fff; }
+.btn-primary:hover { background: #1e4fd4; border-color: #1e4fd4; }
+.btn-ghost { background: transparent; border-color: var(--c-border); color: var(--c-text); }
+.btn-ghost:hover { background: var(--c-bg); }
+.btn-success { background: var(--c-success-bg); border-color: var(--c-success-bd); color: var(--c-success); }
+.btn-success:hover { background: #d1fae5; }
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { height: 34px; font-size: 12px; padding: 0 12px; }
+
+/* ── Form footer ── */
+.form-footer {
+  display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;
+  padding-top: 1rem; border-top: 1px solid var(--c-border);
+}
+
+/* ── Stats row ── */
+.stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 1.25rem; }
+.stat-card {
+  background: var(--c-surface); border: 1px solid var(--c-border);
+  border-radius: var(--r); padding: 1rem 1.125rem; box-shadow: var(--shadow);
+}
+.stat-label { font-size: 11px; color: var(--c-muted); font-weight: 500; margin-bottom: 4px; }
+.stat-value { font-size: 22px; font-weight: 600; letter-spacing: -0.03em; }
+.stat-sub   { font-size: 11px; color: var(--c-hint); margin-top: 2px; font-weight: 400; }
+
+/* ── Filters bar ── */
+.filters-bar {
+  background: var(--c-surface); border: 1px solid var(--c-border);
+  border-radius: var(--r); padding: 1rem 1.25rem; margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+.filters-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.filter-field { display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
+.filter-field label { font-size: 11px; font-weight: 500; color: var(--c-muted); }
+.filter-field input, .filter-field select {
+  height: 34px; padding: 0 9px; border: 1px solid var(--c-border);
+  border-radius: var(--r-sm); font-size: 12px; font-family: 'DM Sans', sans-serif;
+  color: var(--c-text); background: var(--c-surface); outline: none; width: 100%;
+  appearance: none; -webkit-appearance: none;
+}
+.filter-field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6960' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+  padding-right: 24px;
+}
+.filter-field input:focus, .filter-field select:focus { border-color: var(--c-accent); }
+.filter-search { flex: 2; min-width: 180px; }
+.filters-actions { display: flex; gap: 8px; margin-left: auto; align-items: flex-end; flex-wrap: wrap; }
+
+/* ── Table ── */
+.table-wrap { overflow-x: auto; border-radius: var(--r); border: 1px solid var(--c-border); background: var(--c-surface); box-shadow: var(--shadow); }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+thead tr { background: var(--c-bg); }
+th {
+  padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 600;
+  color: var(--c-muted); letter-spacing: 0.04em; text-transform: uppercase;
+  border-bottom: 1px solid var(--c-border); white-space: nowrap;
+  cursor: pointer; user-select: none; position: relative;
+}
+th:hover { color: var(--c-text); }
+th.sorted { color: var(--c-accent); }
+.sort-arrow { margin-left: 4px; opacity: 0.4; font-size: 10px; }
+th.sorted .sort-arrow { opacity: 1; }
+td {
+  padding: 9px 12px; border-bottom: 1px solid var(--c-border);
+  color: var(--c-text); vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: #FAFAF8; }
+.mono { font-family: 'DM Mono', monospace; font-size: 11.5px; }
+
+/* ── Type pills ── */
+.pill {
+  display: inline-flex; align-items: center; padding: 2px 9px;
+  border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.pill-city      { background: #EEF2FD; color: #1e4fd4; }
+.pill-local     { background: #ECFDF5; color: #065f46; }
+.pill-upcountry { background: #FFFBEB; color: #92400e; }
+.pill-othertown { background: #F3F4F6; color: #374151; }
+.pill-other     { background: #F3F4F6; color: #374151; }
+
+/* ── Empty & Loading ── */
+.empty-state { text-align: center; padding: 3rem 1rem; color: var(--c-hint); }
+.empty-icon  { font-size: 2rem; margin-bottom: 8px; }
+.loading-row { text-align: center; padding: 3rem 1rem; color: var(--c-muted); }
+.spinner {
+  display: inline-block; width: 18px; height: 18px; border: 2px solid var(--c-border);
+  border-top-color: var(--c-accent); border-radius: 50%;
+  animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Toast ── */
+#toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast {
+  background: var(--c-text); color: #fff; padding: 10px 16px;
+  border-radius: var(--r-sm); font-size: 13px; display: flex; align-items: center; gap: 8px;
+  animation: toastIn 0.2s ease; max-width: 320px; box-shadow: var(--shadow-md);
+  pointer-events: all;
+}
+.toast.success { background: var(--c-success); }
+.toast.error   { background: var(--c-danger); }
+@keyframes toastIn { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* ── Supabase config overlay ── */
+
+
+/* ── Mobile ── */
+@media (max-width: 680px) {
+  .main { padding: 1rem; }
+  .topbar { padding: 0 1rem; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .filters-row { flex-direction: column; }
+  .filter-field, .filter-search { min-width: 100%; }
+  .filters-actions { margin-left: 0; width: 100%; }
+  .filters-actions .btn { flex: 1; justify-content: center; }
+  .form-footer { flex-direction: column-reverse; }
+  .form-footer .btn { width: 100%; justify-content: center; }
+  .tabs { width: 100%; }
+  .tab { flex: 1; justify-content: center; padding: 7px 8px; }
+}
+@media (max-width: 400px) {
+  .stats-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+
+
+<!-- ── Topbar ── -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-icon">🚚</div>
+    <div>
+      <div class="brand-name">VehicleLog</div>
+      <div class="brand-sub">Transaction Manager</div>
+    </div>
+  </div>
+  <div class="topbar-right" id="total-count">0 total records</div>
+</header>
+
+<!-- ── Main ── -->
+<main class="main">
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" id="tab-entry-btn" onclick="switchTab('entry')">✏️ New Entry</button>
+    <button class="tab" id="tab-records-btn" onclick="switchTab('records')">
+      📋 Records <span class="tab-badge" id="tab-badge">0</span>
+    </button>
+  </div>
+
+  <!-- ══════════════ ENTRY FORM ══════════════ -->
+  <div id="panel-entry">
+
+    <!-- Basic info -->
+    <div class="card">
+      <div class="card-title">👤 Basic Information</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Date *</label>
+          <input type="date" id="f-date" />
+        </div>
+        <div class="field">
+          <label>Vehicle Number *</label>
+          <input type="text" id="f-vnum" placeholder="e.g. MH40CM2452" style="font-family:'DM Mono',monospace;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" />
+        </div>
+        <div class="field">
+          <label>Owner Name</label>
+          <input type="text" id="f-owner" placeholder="Owner full name" />
+        </div>
+        <div class="field">
+          <label>Vehicle Name</label>
+          <select id="f-vname" onchange="onVehicleNameChange()">
+            <option value="">Select vehicle</option>
+            <option>Jeeto</option><option>Bolero</option><option>Bolero 1.5</option>
+            <option>Bolero 1.7</option><option>Bolero 2.0</option><option>Tata Ace 1000</option>
+            <option>Intra</option><option>Intra 1200</option><option>Furo 12</option>
+            <option>Auto</option><option>14 Fit</option><option>Ashok Leyland</option>
+            <option>Yoddha</option><option value="Other">Other</option>
+          </select>
+          <div id="vname-other-wrap">
+            <input type="text" id="f-vname-other" placeholder="Enter vehicle name" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trip details -->
+    <div class="card">
+      <div class="card-title">🏠 Trip Details</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Godown Name</label>
+          <input type="text" id="f-godown" placeholder="e.g. Berger Paints" />
+        </div>
+        <div class="field">
+          <label>Gate Pass Number</label>
+          <input type="text" id="f-gpass" placeholder="Gate pass no." />
+        </div>
+        <div class="field">
+          <label>Transaction Type</label>
+          <select id="f-ttype" onchange="onTypeOrWeightChange()">
+            <option value="">Select type</option>
+            <option>City</option>
+            <option>Local</option>
+            <option>Up Country</option>
+            <option>Other Town</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Weight (KG)</label>
+          <input type="number" id="f-weight" placeholder="0" min="0" oninput="onTypeOrWeightChange()" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Financials -->
+    <div class="card">
+      <div class="card-title">💰 Financials</div>
+      <div id="calc-banner" class="banner info" style="display:none">
+        <span class="banner-icon">⚡</span>
+        <span id="calc-banner-text"></span>
+      </div>
+      <div id="manual-banner" class="banner warn" style="display:none">
+        <span class="banner-icon">✏️</span>
+        <span id="manual-banner-text"></span>
+      </div>
+      <div class="grid-3">
+        <div class="field">
+          <label>Diesel (₹)</label>
+          <input type="number" id="f-diesel" placeholder="0.00" min="0" step="0.01" />
+        </div>
+        <div class="field">
+          <label>Advance (₹)</label>
+          <input type="number" id="f-advance" placeholder="0.00" min="0" step="0.01" />
+        </div>
+        <div class="field">
+          <label>Driver Amount (₹)</label>
+          <input type="number" id="f-driver" placeholder="0.00" min="0" step="0.01" />
+          <span class="field-hint auto" id="driver-hint" style="display:none"></span>
+        </div>
+      </div>
+      <div style="margin-top:12px;max-width:240px">
+        <div class="field">
+          <label>Owner Amount (₹)</label>
+          <input type="number" id="f-owneramount" placeholder="0.00" min="0" step="0.01" />
+          <span class="field-hint auto" id="owner-hint" style="display:none"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Remarks -->
+    <div class="card">
+      <div class="card-title">💬 Remarks</div>
+      <div class="field">
+        <textarea id="f-remarks" placeholder="Optional notes or remarks..."></textarea>
+      </div>
+    </div>
+
+    <div class="form-footer">
+      <button class="btn btn-ghost" onclick="clearForm()">Clear form</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveRecord()">💾 Save Record</button>
+    </div>
+  </div>
+
+  <!-- ══════════════ RECORDS PANEL ══════════════ -->
+  <div id="panel-records" style="display:none">
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Filtered records</div>
+        <div class="stat-value" id="s-total">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total weight</div>
+        <div class="stat-value" style="font-size:18px" id="s-weight">0</div>
+        <div class="stat-sub">KG</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Driver payouts</div>
+        <div class="stat-value" style="font-size:18px" id="s-driver">₹0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Owner payouts</div>
+        <div class="stat-value" style="font-size:18px" id="s-owner">₹0</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-bar">
+      <div class="filters-row">
+        <div class="filter-field filter-search">
+          <label>Search</label>
+          <input type="text" id="fl-search" placeholder="Vehicle no., owner, godown…" oninput="applyFilters()" />
+        </div>
+        <div class="filter-field">
+          <label>Transaction type</label>
+          <select id="fl-type" onchange="applyFilters()">
+            <option value="">All types</option>
+            <option>City</option><option>Local</option>
+            <option>Up Country</option><option>Other Town</option><option>Other</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>From date</label>
+          <input type="date" id="fl-from" onchange="applyFilters()" />
+        </div>
+        <div class="filter-field">
+          <label>To date</label>
+          <input type="date" id="fl-to" onchange="applyFilters()" />
+        </div>
+        <div class="filters-actions">
+          <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear filters</button>
+          <button class="btn btn-success btn-sm" id="export-btn" onclick="exportExcel()">
+            ⬇ Export Excel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="toggleSort('date')" id="th-date">Date <span class="sort-arrow" id="sa-date">↕</span></th>
+            <th onclick="toggleSort('vehicle_number')" id="th-vehicle_number">Vehicle No. <span class="sort-arrow" id="sa-vehicle_number">↕</span></th>
+            <th onclick="toggleSort('owner_name')" id="th-owner_name">Owner <span class="sort-arrow" id="sa-owner_name">↕</span></th>
+            <th onclick="toggleSort('vehicle_name')" id="th-vehicle_name">Vehicle <span class="sort-arrow" id="sa-vehicle_name">↕</span></th>
+            <th onclick="toggleSort('godown_name')" id="th-godown_name">Godown <span class="sort-arrow" id="sa-godown_name">↕</span></th>
+            <th onclick="toggleSort('transaction_type')" id="th-transaction_type">Type <span class="sort-arrow" id="sa-transaction_type">↕</span></th>
+            <th onclick="toggleSort('weight')" id="th-weight">Weight <span class="sort-arrow" id="sa-weight">↕</span></th>
+            <th onclick="toggleSort('driver_amount')" id="th-driver_amount">Driver Amt <span class="sort-arrow" id="sa-driver_amount">↕</span></th>
+            <th onclick="toggleSort('owner_amount')" id="th-owner_amount">Owner Amt <span class="sort-arrow" id="sa-owner_amount">↕</span></th>
+            <th onclick="toggleSort('diesel')" id="th-diesel">Diesel <span class="sort-arrow" id="sa-diesel">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="records-tbody">
+          <tr><td colspan="10" class="loading-row"><span class="spinner"></span> Loading records…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────────────────
+const RATES = {
+  'City':       { driver: 0.8,  owner: 1.0 },
+  'Local':      { driver: 0.5,  owner: 0.6 },
+  'Up Country': { driver: 1.8,  owner: 1.9 },
+};
+
+// ── Hardcoded Supabase credentials — replace with your own ──
+const SUPABASE_URL = 'https://hmfdorjmustqzijnsjmg.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtZmRvcmptdXN0cXppam5zam1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4NDkxNjksImV4cCI6MjA5NTQyNTE2OX0.ZhiFrD8pVsskWgVW48r3o3ZER42sNAEFByb2Upwd20A';
+
+// ── Supabase fetch ──────────────────────────────────────────────────────────
+async function sbFetch(path, options = {}) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Supabase not configured.');
+  // Always build the base cleanly — strip any /rest/v1 suffix that crept in
+  const base = SUPABASE_URL.replace(/\/rest\/v1.*$/, '').replace(/\/$/, '');
+  const res = await fetch(base + '/rest/v1' + path, {
+    ...options,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': options.prefer || 'return=representation',
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) { const e = await res.text(); throw new Error(e); }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+// ── State ───────────────────────────────────────────────────────────────────
+let allRecords = [];
+let displayedRecords = [];
+let sortCol = 'date', sortDir = 'desc';
+
+// ── Tab switching ───────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('panel-entry').style.display   = tab === 'entry'   ? '' : 'none';
+  document.getElementById('panel-records').style.display = tab === 'records' ? '' : 'none';
+  document.getElementById('tab-entry-btn').classList.toggle('active',   tab === 'entry');
+  document.getElementById('tab-records-btn').classList.toggle('active', tab === 'records');
+  if (tab === 'records') applyFilters();
+}
+
+// ── Vehicle name "Other" ────────────────────────────────────────────────────
+function onVehicleNameChange() {
+  const sel = document.getElementById('f-vname').value;
+  const wrap = document.getElementById('vname-other-wrap');
+  wrap.style.display = sel === 'Other' ? 'block' : 'none';
+  if (sel === 'Other') document.getElementById('f-vname-other').focus();
+  else document.getElementById('f-vname-other').value = '';
+}
+
+// ── Auto-calc amounts ───────────────────────────────────────────────────────
+function onTypeOrWeightChange() {
+  const type   = document.getElementById('f-ttype').value;
+  const weight = parseFloat(document.getElementById('f-weight').value) || 0;
+  const dInput = document.getElementById('f-driver');
+  const oInput = document.getElementById('f-owneramount');
+  const calcBanner   = document.getElementById('calc-banner');
+  const manualBanner = document.getElementById('manual-banner');
+  const dHint  = document.getElementById('driver-hint');
+  const oHint  = document.getElementById('owner-hint');
+
+  if (RATES[type]) {
+    const r = RATES[type];
+    const dv = weight ? (weight * r.driver).toFixed(2) : '';
+    const ov = weight ? (weight * r.owner).toFixed(2)  : '';
+    dInput.value    = dv;
+    oInput.value    = ov;
+    dInput.readOnly = true;   oInput.readOnly = true;
+    dInput.classList.add('auto-field');
+    oInput.classList.add('auto-field');
+    dHint.textContent = 'Auto: weight × ' + r.driver;  dHint.style.display = '';
+    oHint.textContent = 'Auto: weight × ' + r.owner;   oHint.style.display = '';
+    calcBanner.style.display = '';
+    manualBanner.style.display = 'none';
+    document.getElementById('calc-banner-text').innerHTML =
+      '<strong>' + type + '</strong> rates — Driver ×' + r.driver + ', Owner ×' + r.owner +
+      (weight ? ' → ₹' + dv + ' / ₹' + ov : ' (enter weight to calculate)');
+  } else {
+    dInput.readOnly = false; oInput.readOnly = false;
+    dInput.classList.remove('auto-field');
+    oInput.classList.remove('auto-field');
+    dHint.style.display = 'none'; oHint.style.display = 'none';
+    calcBanner.style.display = 'none';
+    if (type) {
+      manualBanner.style.display = '';
+      document.getElementById('manual-banner-text').innerHTML =
+        '<strong>' + type + '</strong> — enter driver and owner amounts manually';
+    } else {
+      manualBanner.style.display = 'none';
+    }
+  }
+}
+
+// ── Clear form ──────────────────────────────────────────────────────────────
+function clearForm() {
+  ['f-date','f-vnum','f-owner','f-godown','f-gpass','f-weight',
+   'f-diesel','f-advance','f-driver','f-owneramount','f-remarks','f-vname-other']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('f-vname').value  = '';
+  document.getElementById('f-ttype').value  = '';
+  document.getElementById('vname-other-wrap').style.display = 'none';
+  ['f-driver','f-owneramount'].forEach(id => {
+    const el = document.getElementById(id);
+    el.readOnly = false; el.classList.remove('auto-field');
+  });
+  document.getElementById('driver-hint').style.display  = 'none';
+  document.getElementById('owner-hint').style.display   = 'none';
+  document.getElementById('calc-banner').style.display  = 'none';
+  document.getElementById('manual-banner').style.display= 'none';
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+}
+
+// ── Save record ─────────────────────────────────────────────────────────────
+async function saveRecord() {
+  const date  = document.getElementById('f-date').value;
+  const vnum  = document.getElementById('f-vnum').value.trim();
+  if (!date || !vnum) { toast('Date and vehicle number are required.', 'error'); return; }
+  const vnSel = document.getElementById('f-vname').value;
+  const vname = vnSel === 'Other' ? document.getElementById('f-vname-other').value.trim() : vnSel;
+  if (vnSel === 'Other' && !vname) { toast('Please enter the vehicle name.', 'error'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const payload = {
+    date,
+    vehicle_number:   vnum,
+    owner_name:       v('f-owner')    || null,
+    vehicle_name:     vname           || null,
+    godown_name:      v('f-godown')   || null,
+    gate_pass_number: v('f-gpass')    || null,
+    transaction_type: v('f-ttype')    || null,
+    weight:           n('f-weight'),
+    diesel:           n('f-diesel'),
+    advance:          n('f-advance'),
+    driver_amount:    n('f-driver'),
+    owner_amount:     n('f-owneramount'),
+    remarks:          v('f-remarks')  || null,
+  };
+
+  try {
+    const [saved] = await sbFetch('/vehicle_transactions', {
+      method: 'POST', body: JSON.stringify(payload), prefer: 'return=representation',
+    });
+    allRecords.unshift(saved);
+    updateTotalCount();
+    clearForm();
+    toast('Record saved successfully!', 'success');
+  } catch (e) {
+    toast('Save failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Save Record';
+  }
+}
+
+function v(id)  { const val = document.getElementById(id).value.trim(); return val || null; }
+function n(id)  { const val = parseFloat(document.getElementById(id).value); return isNaN(val) ? null : val; }
+
+// ── Fetch records ───────────────────────────────────────────────────────────
+async function fetchRecords() {
+  document.getElementById('records-tbody').innerHTML =
+    '<tr><td colspan="10" class="loading-row"><span class="spinner"></span> Loading records…</td></tr>';
+  try {
+    allRecords = await sbFetch('/vehicle_transactions?order=date.desc');
+    updateTotalCount();
+    applyFilters();
+  } catch (e) {
+    document.getElementById('records-tbody').innerHTML =
+      '<tr><td colspan="10" class="empty-state">⚠️ Could not load records. Check Supabase config above.</td></tr>';
+  }
+}
+
+function updateTotalCount() {
+  document.getElementById('total-count').textContent = allRecords.length + ' total records';
+  document.getElementById('tab-badge').textContent   = allRecords.length;
+}
+
+// ── Filters & sort ──────────────────────────────────────────────────────────
+function clearFilters() {
+  ['fl-search','fl-from','fl-to'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fl-type').value = '';
+  applyFilters();
+}
+
+function applyFilters() {
+  const search  = document.getElementById('fl-search').value.toLowerCase();
+  const type    = document.getElementById('fl-type').value;
+  const dateFrom= document.getElementById('fl-from').value;
+  const dateTo  = document.getElementById('fl-to').value;
+
+  let rows = allRecords.filter(r => {
+    if (search && !['vehicle_number','owner_name','vehicle_name','godown_name']
+      .some(k => (r[k] || '').toLowerCase().includes(search))) return false;
+    if (type && r.transaction_type !== type) return false;
+    if (dateFrom && r.date < dateFrom) return false;
+    if (dateTo   && r.date > dateTo)   return false;
+    return true;
+  });
+
+  rows.sort((a, b) => {
+    let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
+    if (typeof av === 'number' || !isNaN(parseFloat(av))) {
+      av = parseFloat(av) || 0; bv = parseFloat(bv) || 0;
+      return sortDir === 'asc' ? av - bv : bv - av;
+    }
+    return sortDir === 'asc'
+      ? String(av).localeCompare(String(bv))
+      : String(bv).localeCompare(String(av));
+  });
+
+  displayedRecords = rows;
+  renderTable();
+  updateStats();
+}
+
+function toggleSort(col) {
+  if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  else { sortCol = col; sortDir = 'asc'; }
+
+  document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
+  document.querySelectorAll('.sort-arrow').forEach(el => { el.textContent = '↕'; });
+  const th = document.getElementById('th-' + col);
+  const sa = document.getElementById('sa-' + col);
+  if (th) th.classList.add('sorted');
+  if (sa) sa.textContent = sortDir === 'asc' ? '↑' : '↓';
+
+  applyFilters();
+}
+
+// ── Render table ────────────────────────────────────────────────────────────
+function pillClass(type) {
+  return { City:'pill-city', Local:'pill-local', 'Up Country':'pill-upcountry',
+           'Other Town':'pill-othertown', Other:'pill-other' }[type] || 'pill-other';
+}
+function fmtMoney(n) {
+  if (n == null || n === '') return '—';
+  return '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+function fmtWeight(n) {
+  return n ? Number(n).toLocaleString('en-IN') + ' KG' : '—';
+}
+
+function renderTable() {
+  const tbody = document.getElementById('records-tbody');
+  if (!displayedRecords.length) {
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📭</div><div>No records match your filters</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = displayedRecords.map(r => `
+    <tr>
+      <td>${r.date || '—'}</td>
+      <td><span class="mono">${r.vehicle_number || '—'}</span></td>
+      <td>${r.owner_name || '—'}</td>
+      <td>${r.vehicle_name || '—'}</td>
+      <td>${r.godown_name || '—'}</td>
+      <td>${r.transaction_type ? `<span class="pill ${pillClass(r.transaction_type)}">${r.transaction_type}</span>` : '—'}</td>
+      <td>${fmtWeight(r.weight)}</td>
+      <td style="font-weight:500">${fmtMoney(r.driver_amount)}</td>
+      <td style="font-weight:500">${fmtMoney(r.owner_amount)}</td>
+      <td>${fmtMoney(r.diesel)}</td>
+    </tr>`).join('');
+}
+
+function updateStats() {
+  const total  = displayedRecords.length;
+  const weight = displayedRecords.reduce((s,r) => s + (parseFloat(r.weight) || 0), 0);
+  const driver = displayedRecords.reduce((s,r) => s + (parseFloat(r.driver_amount) || 0), 0);
+  const owner  = displayedRecords.reduce((s,r) => s + (parseFloat(r.owner_amount)  || 0), 0);
+  document.getElementById('s-total').textContent  = total.toLocaleString('en-IN');
+  document.getElementById('s-weight').textContent = weight.toLocaleString('en-IN');
+  document.getElementById('s-driver').textContent = '₹' + Math.round(driver).toLocaleString('en-IN');
+  document.getElementById('s-owner').textContent  = '₹' + Math.round(owner).toLocaleString('en-IN');
+
+  const btn = document.getElementById('export-btn');
+  btn.textContent = `⬇ Export Excel (${total})`;
+  btn.disabled    = total === 0;
+}
+
+// ── Export Excel ────────────────────────────────────────────────────────────
+function exportExcel() {
+  if (!displayedRecords.length) return;
+  const rows = displayedRecords.map(r => ({
+    'Date':              r.date || '',
+    'Vehicle Number':    r.vehicle_number || '',
+    'Owner Name':        r.owner_name || '',
+    'Vehicle Name':      r.vehicle_name || '',
+    'Godown Name':       r.godown_name || '',
+    'Gate Pass Number':  r.gate_pass_number || '',
+    'Transaction Type':  r.transaction_type || '',
+    'Weight (KG)':       r.weight ?? '',
+    'Diesel':            r.diesel ?? '',
+    'Advance':           r.advance ?? '',
+    'Driver Amount':     r.driver_amount ?? '',
+    'Owner Amount':      r.owner_amount ?? '',
+    'Remarks':           r.remarks || '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0]).map(() => ({ wch: 18 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+  XLSX.writeFile(wb, 'Vehicle_Transactions_' + new Date().toISOString().split('T')[0] + '.xlsx');
+  toast('Exported ' + rows.length + ' records.', 'success');
+}
+
+// ── Toast ───────────────────────────────────────────────────────────────────
+function toast(msg, type) {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type || '');
+  el.textContent = (type === 'success' ? '✅ ' : type === 'error' ? '❌ ' : 'ℹ️ ') + msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ── Init ────────────────────────────────────────────────────────────────────
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+fetchRecords();
+</script>
+</body>
+</html>
