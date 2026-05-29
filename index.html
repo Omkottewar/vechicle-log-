@@ -479,10 +479,12 @@ tbody tr:hover td { background: #FAFAF8; }
             <th onclick="toggleSort('driver_amount')" id="th-driver_amount">Driver Amt <span class="sort-arrow" id="sa-driver_amount">↕</span></th>
             <th onclick="toggleSort('owner_amount')" id="th-owner_amount">Owner Amt <span class="sort-arrow" id="sa-owner_amount">↕</span></th>
             <th onclick="toggleSort('diesel')" id="th-diesel">Diesel <span class="sort-arrow" id="sa-diesel">↕</span></th>
+            <th onclick="toggleSort('advance')" id="th-advance">Advance <span class="sort-arrow" id="sa-advance">↕</span></th>
+            <th onclick="toggleSort('gate_pass_number')" id="th-gate_pass_number">Gate Pass <span class="sort-arrow" id="sa-gate_pass_number">↕</span></th>
           </tr>
         </thead>
         <tbody id="records-tbody">
-          <tr><td colspan="10" class="loading-row"><span class="spinner"></span> Loading records…</td></tr>
+          <tr><td colspan="12" class="loading-row"><span class="spinner"></span> Loading records…</td></tr>
         </tbody>
       </table>
     </div>
@@ -658,7 +660,7 @@ function n(id)  { const val = parseFloat(document.getElementById(id).value); ret
 // ── Fetch records ───────────────────────────────────────────────────────────
 async function fetchRecords() {
   document.getElementById('records-tbody').innerHTML =
-    '<tr><td colspan="10" class="loading-row"><span class="spinner"></span> Loading records…</td></tr>';
+    '<tr><td colspan="12" class="loading-row"><span class="spinner"></span> Loading records…</td></tr>';
   try {
     allRecords = await sbFetch('/vehicle_transactions?order=date.desc');
     updateTotalCount();
@@ -742,7 +744,7 @@ function fmtWeight(n) {
 function renderTable() {
   const tbody = document.getElementById('records-tbody');
   if (!displayedRecords.length) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📭</div><div>No records match your filters</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">📭</div><div>No records match your filters</div></div></td></tr>';
     return;
   }
   tbody.innerHTML = displayedRecords.map(r => `
@@ -757,6 +759,8 @@ function renderTable() {
       <td style="font-weight:500">${fmtMoney(r.driver_amount)}</td>
       <td style="font-weight:500">${fmtMoney(r.owner_amount)}</td>
       <td>${fmtMoney(r.diesel)}</td>
+      <td>${fmtMoney(r.advance)}</td>
+      <td>${r.gate_pass_number || '—'}</td>
     </tr>`).join('');
 }
 
