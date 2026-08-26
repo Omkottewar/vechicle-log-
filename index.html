@@ -197,8 +197,13 @@ body { font-family: 'DM Sans', sans-serif; background: var(--c-bg); color: var(-
   border-radius: var(--r); padding: 1rem 1.25rem; margin-bottom: 1rem;
   box-shadow: var(--shadow);
 }
-.filters-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-.filter-field { display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
+/* 6 filters on one row. Breakpoints step 6 → 3 → 2 → 1: every count divides 6,
+   so a wrapped row is never left with a half-empty trailing gap. */
+.filters-row {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  gap: 10px; align-items: end;
+}
+.filter-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .filter-field label { font-size: 11px; font-weight: 500; color: var(--c-muted); }
 .filter-field input, .filter-field select {
   height: 34px; padding: 0 9px; border: 1px solid var(--c-border);
@@ -212,8 +217,10 @@ body { font-family: 'DM Sans', sans-serif; background: var(--c-bg); color: var(-
   padding-right: 24px;
 }
 .filter-field input:focus, .filter-field select:focus { border-color: var(--c-accent); }
-.filter-search { flex: 2; min-width: 180px; }
-.filters-actions { display: flex; gap: 8px; margin-left: auto; align-items: flex-end; flex-wrap: wrap; }
+.filters-actions {
+  display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--c-border);
+}
 
 /* ── Table ── */
 .table-wrap { overflow-x: auto; border-radius: var(--r); border: 1px solid var(--c-border); background: var(--c-surface); box-shadow: var(--shadow); }
@@ -269,20 +276,25 @@ tbody tr:hover td { background: #FAFAF8; }
 .toast.error   { background: var(--c-danger); }
 @keyframes toastIn { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-/* ── Mobile ── */
+/* ── Responsive ── */
+/* Ordered widest-first: max-width queries overlap, so the narrowest must win. */
+@media (max-width: 1000px) {
+  .filters-row { grid-template-columns: repeat(3, 1fr); }
+}
 @media (max-width: 680px) {
   .main { padding: 1rem; }
   .topbar { padding: 0 1rem; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .stats-row { grid-template-columns: 1fr; }
-  .filters-row { flex-direction: column; }
-  .filter-field, .filter-search { min-width: 100%; }
-  .filters-actions { margin-left: 0; width: 100%; }
+  .filters-row { grid-template-columns: repeat(2, 1fr); }
   .filters-actions .btn { flex: 1; justify-content: center; }
   .form-footer { flex-direction: column-reverse; }
   .form-footer .btn { width: 100%; justify-content: center; }
   .tabs { width: 100%; }
   .tab { flex: 1; justify-content: center; padding: 7px 8px; }
+}
+@media (max-width: 420px) {
+  .filters-row { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -499,12 +511,12 @@ tbody tr:hover td { background: #FAFAF8; }
           <label>To date</label>
           <input type="date" id="fl-to" onchange="applyFilters()" />
         </div>
-        <div class="filters-actions">
-          <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear filters</button>
-          <button class="btn btn-success btn-sm" id="export-btn" onclick="exportExcel()">
-            ⬇ Export Excel
-          </button>
-        </div>
+      </div>
+      <div class="filters-actions">
+        <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear filters</button>
+        <button class="btn btn-success btn-sm" id="export-btn" onclick="exportExcel()">
+          ⬇ Export Excel
+        </button>
       </div>
     </div>
 
@@ -732,14 +744,17 @@ async function addUnit() {
   const alias = properAlias(document.getElementById('f-unit-alias').value);
   if (!name) { toast('Enter the unit name.', 'error'); return; }
 
-  // Duplicate check across both names and aliases, case-insensitive.
-  const taken = new Set();
-  units.forEach(u => { taken.add(u.name.toLowerCase()); if (u.alias) taken.add(u.alias.toLowerCase()); });
-  if (taken.has(name.toLowerCase()) || (alias && taken.has(alias.toLowerCase()))) {
-    const existing = findUnit(name) ||
-      units.find(u => (u.alias || '').toLowerCase() === (alias || ' ').toLowerCase());
-    toast('That unit already exists' + (existing ? ' as "' + unitLabel(existing) + '".' : '.'), 'error');
-    if (existing) { document.getElementById('f-unit').value = existing.name; lastUnit = existing.name; closeAddUnit(); }
+  // A new unit clashes if either of its identifiers (name or alias) already
+  // belongs to an existing unit, compared case-insensitively.
+  const key   = s2 => String(s2 || '').trim().toLowerCase();
+  const mine  = [key(name), key(alias)].filter(Boolean);
+  const clash = units.find(u => [key(u.name), key(u.alias)].filter(Boolean)
+                                  .some(k => mine.includes(k)));
+  if (clash) {
+    toast('That unit already exists as "' + unitLabel(clash) + '".', 'error');
+    document.getElementById('f-unit').value = clash.name;
+    lastUnit = clash.name;
+    closeAddUnit();
     return;
   }
 
