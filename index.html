@@ -400,7 +400,7 @@ tbody tr:hover td { background: #FAFAF8; }
           </select>
         </div>
         <div class="field">
-          <label>Rate (₹)</label>
+          <label id="rate-label">Rate (₹)</label>
           <input type="number" id="f-rate" placeholder="0.00" min="0" step="0.01" oninput="recalcTotal()" />
         </div>
       </div>
@@ -534,7 +534,7 @@ tbody tr:hover td { background: #FAFAF8; }
             <th onclick="toggleSort('vehicle_name')" id="th-vehicle_name">Vehicle <span class="sort-arrow" id="sa-vehicle_name">↕</span></th>
             <th onclick="toggleSort('quantity')" id="th-quantity">Qty <span class="sort-arrow" id="sa-quantity">↕</span></th>
             <th onclick="toggleSort('unit')" id="th-unit">Unit <span class="sort-arrow" id="sa-unit">↕</span></th>
-            <th onclick="toggleSort('rate')" id="th-rate">Rate <span class="sort-arrow" id="sa-rate">↕</span></th>
+            <th onclick="toggleSort('rate')" id="th-rate">Rate / Amount <span class="sort-arrow" id="sa-rate">↕</span></th>
             <th onclick="toggleSort('ftl')" id="th-ftl">FTL <span class="sort-arrow" id="sa-ftl">↕</span></th>
             <th onclick="toggleSort('total_amount')" id="th-total_amount">Total Amount <span class="sort-arrow" id="sa-total_amount">↕</span></th>
           </tr>
@@ -613,22 +613,35 @@ function onVehicleNameChange() {
 }
 
 // ── FTL toggle ──────────────────────────────────────────────────────────────
+// A full truck load is charged as one flat figure for the whole vehicle, so the
+// Rate field becomes an Amount and carries straight through to Total Amount.
+function isFtl() { return document.getElementById('f-ftl').checked; }
+
 function onFtlChange() {
-  const on = document.getElementById('f-ftl').checked;
+  const on = isFtl();
   document.getElementById('ftl-box').classList.toggle('on', on);
+  document.getElementById('rate-label').textContent = on ? 'Amount (₹)' : 'Rate (₹)';
+  recalcTotal();
 }
 
 // ── Total Amount ────────────────────────────────────────────────────────────
-// Defaults to Quantity × Rate, but stays editable — typing your own figure
-// (a flat FTL charge, say) stops the auto-calc from overwriting it. Clearing
-// the field, or the "use auto" link, hands control back to the calculation.
+// Auto-calculated — Quantity × Rate normally, or just the Amount when FTL is
+// ticked — but still editable: typing your own figure stops the calculation
+// from overwriting it. Clearing the field, or the "use auto" link, hands
+// control back to the calculation.
 function round2(x) { return Math.round(x * 100) / 100; }
 
 function autoTotal() {
-  const qty  = parseFloat(document.getElementById('f-qty').value);
   const rate = parseFloat(document.getElementById('f-rate').value);
-  return (isNaN(qty) || isNaN(rate)) ? null : round2(qty * rate);
+  if (isNaN(rate)) return null;
+  if (isFtl()) return round2(rate);
+  const qty = parseFloat(document.getElementById('f-qty').value);
+  return isNaN(qty) ? null : round2(qty * rate);
 }
+
+// How the auto figure is described in the hint under Total Amount.
+function totalFormula()  { return isFtl() ? 'Amount' : 'Quantity × Rate'; }
+function totalAutoHint() { return isFtl() ? 'Auto: same as Amount' : 'Auto: Quantity × Rate'; }
 
 function recalcTotal() {
   if (!totalOverridden) {
@@ -655,14 +668,14 @@ function updateTotalHint() {
 
   if (!totalOverridden) {
     hint.className   = 'field-hint auto';
-    hint.textContent = 'Auto: Quantity × Rate';
+    hint.textContent = totalAutoHint();
     return;
   }
   const auto  = autoTotal();
   const typed = parseFloat(el.value);
   const parts = ['Manual amount'];
   if (auto != null && (isNaN(typed) || round2(typed) !== auto)) {
-    parts.push('Quantity × Rate = ' + fmtMoney(auto));
+    parts.push(totalFormula() + ' = ' + fmtMoney(auto));
   }
   parts.push('<span class="link" onclick="useAutoTotal()">use auto</span>');
   hint.className = 'field-hint manual';
@@ -808,10 +821,9 @@ function clearForm() {
   document.getElementById('f-vname').value = '';
   document.getElementById('f-unit').value  = '';
   lastUnit = '';
-  document.getElementById('f-ftl').checked = false;
-  onFtlChange();
   totalOverridden = false;
-  recalcTotal();
+  document.getElementById('f-ftl').checked = false;
+  onFtlChange();                             // resets the Rate label and recalculates
   document.getElementById('vname-other-wrap').style.display = 'none';
   closeAddUnit();
   document.getElementById('f-date').value = getTodayStr();
@@ -1034,7 +1046,7 @@ function renderTable() {
       <td>${esc(r.vehicle_name) || '—'}</td>
       <td class="num">${fmtNum(r.quantity)}</td>
       <td title="${esc(unitFull(r.unit))}">${esc(r.unit ? unitShort(r.unit) : '—')}</td>
-      <td class="num">${fmtMoney(r.rate)}</td>
+      <td class="num" title="${r.ftl ? 'Flat FTL amount' : 'Per-unit rate'}">${fmtMoney(r.rate)}</td>
       <td>${r.ftl ? '<span class="pill pill-yes">FTL</span>' : '—'}</td>
       <td class="num" style="font-weight:500">${fmtMoney(r.total_amount)}</td>
     </tr>`).join('');
@@ -1084,7 +1096,7 @@ function exportExcel() {
     'Vehicle Name':   r.vehicle_name || '',
     'Quantity':       r.quantity ?? '',
     'Unit':           r.unit ? unitFull(r.unit) : '',
-    'Rate':           r.rate ?? '',
+    'Rate / Amount':  r.rate ?? '',
     'FTL':            r.ftl ? 'Yes' : 'No',
     'Total Amount':   r.total_amount ?? '',
     'Remarks':        r.remarks || '',
@@ -1115,6 +1127,7 @@ function getTodayStr() {
 
 // ── Init ────────────────────────────────────────────────────────────────────
 document.getElementById('f-date').value = getTodayStr();
+onFtlChange();          // some browsers restore the checkbox across a reload — resync the label
 renderUnitOptions();
 loadUnits();
 fetchRecords();

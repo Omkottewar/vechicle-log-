@@ -36,9 +36,9 @@ alter table public.vehicle_transactions
   add column if not exists lr_no        text,              -- lorry receipt no.
   add column if not exists quantity     numeric(14,3),
   add column if not exists unit         text,              -- canonical unit name, e.g. 'Kilogram'
-  add column if not exists rate         numeric(14,2),
+  add column if not exists rate         numeric(14,2),     -- per-unit rate, OR the flat charge when ftl = true
   add column if not exists ftl          boolean not null default false,
-  add column if not exists total_amount numeric(14,2);     -- quantity × rate, computed in the UI
+  add column if not exists total_amount numeric(14,2);     -- ftl ? rate : quantity × rate (editable in the UI)
 
 
 -- ── 3. Helpful indexes for the filters ─────────────────────────────────────
@@ -75,8 +75,10 @@ create policy "units_insert_anon" on public.units for insert with check (true);
 
 -- ── 5. Optional: backfill total_amount for any pre-existing rows ────────────
 -- Old records have no quantity/rate, so this normally updates 0 rows.
+-- Mirrors the UI rule: a full truck load is charged flat, everything else per unit.
 update public.vehicle_transactions
-   set total_amount = round(quantity * rate, 2)
+   set total_amount = case when ftl then round(rate, 2)
+                           else round(quantity * rate, 2) end
  where total_amount is null
-   and quantity is not null
-   and rate is not null;
+   and rate is not null
+   and (ftl or quantity is not null);
