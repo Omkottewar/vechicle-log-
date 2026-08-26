@@ -118,7 +118,35 @@ body { font-family: 'DM Sans', sans-serif; background: var(--c-bg); color: var(-
 }
 .field-hint { font-size: 11px; color: var(--c-hint); margin-top: 2px; }
 .field-hint.auto { color: var(--c-accent); font-weight: 500; }
+.field-hint.manual { color: var(--c-warn); font-weight: 500; }
+.field-hint .link { color: var(--c-accent); font-weight: 500; cursor: pointer; text-decoration: underline; }
 #vname-other-wrap { margin-top: 6px; display: none; }
+
+/* ── Checkbox field (FTL) ── */
+.field label.check-box {
+  display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 11px;
+  border: 1px solid var(--c-border); border-radius: var(--r-sm); cursor: pointer;
+  user-select: none; background: var(--c-surface); transition: all 0.15s;
+  font-size: 13px; color: var(--c-text); font-weight: 500;
+}
+.field label.check-box:hover { border-color: var(--c-border2); }
+.field label.check-box.on { background: var(--c-accent-bg); border-color: var(--c-accent-bd); color: var(--c-accent); }
+.check-box input[type="checkbox"] {
+  width: 17px; height: 17px; flex: 0 0 auto; padding: 0;
+  border: none; background: transparent; box-shadow: none;
+  accent-color: var(--c-accent); cursor: pointer;
+  appearance: auto; -webkit-appearance: checkbox;
+}
+.check-box input[type="checkbox"]:focus { box-shadow: none; }
+
+/* ── Inset panel (add unit) ── */
+.inset-panel {
+  margin-top: 12px; padding: 12px 14px; background: var(--c-bg);
+  border: 1px solid var(--c-border); border-radius: var(--r-sm);
+}
+.inset-title { font-size: 12px; font-weight: 600; color: var(--c-text); margin-bottom: 10px; }
+.inset-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+#unit-add-wrap { display: none; }
 
 /* ── Banners ── */
 .banner {
@@ -154,7 +182,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--c-bg); color: var(-
 }
 
 /* ── Stats row ── */
-.stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 1.25rem; }
+.stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 1.25rem; }
 .stat-card {
   background: var(--c-surface); border: 1px solid var(--c-border);
   border-radius: var(--r); padding: 1rem 1.125rem; box-shadow: var(--shadow);
@@ -208,17 +236,15 @@ td {
 tr:last-child td { border-bottom: none; }
 tbody tr:hover td { background: #FAFAF8; }
 .mono { font-family: 'DM Mono', monospace; font-size: 11.5px; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
 
-/* ── Type pills ── */
+/* ── Pills ── */
 .pill {
   display: inline-flex; align-items: center; padding: 2px 9px;
   border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap;
 }
-.pill-city      { background: #EEF2FD; color: #1e4fd4; }
-.pill-local     { background: #ECFDF5; color: #065f46; }
-.pill-upcountry { background: #FFFBEB; color: #92400e; }
-.pill-othertown { background: #F3F4F6; color: #374151; }
-.pill-other     { background: #F3F4F6; color: #374151; }
+.pill-yes   { background: #ECFDF5; color: #065f46; }
+.pill-muted { background: #F3F4F6; color: #374151; }
 
 /* ── Empty & Loading ── */
 .empty-state { text-align: center; padding: 3rem 1rem; color: var(--c-hint); }
@@ -243,15 +269,12 @@ tbody tr:hover td { background: #FAFAF8; }
 .toast.error   { background: var(--c-danger); }
 @keyframes toastIn { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-/* ── Supabase config overlay ── */
-
-
 /* ── Mobile ── */
 @media (max-width: 680px) {
   .main { padding: 1rem; }
   .topbar { padding: 0 1rem; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
-  .stats-row { grid-template-columns: 1fr 1fr; }
+  .stats-row { grid-template-columns: 1fr; }
   .filters-row { flex-direction: column; }
   .filter-field, .filter-search { min-width: 100%; }
   .filters-actions { margin-left: 0; width: 100%; }
@@ -260,9 +283,6 @@ tbody tr:hover td { background: #FAFAF8; }
   .form-footer .btn { width: 100%; justify-content: center; }
   .tabs { width: 100%; }
   .tab { flex: 1; justify-content: center; padding: 7px 8px; }
-}
-@media (max-width: 400px) {
-  .stats-row { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -296,21 +316,45 @@ tbody tr:hover td { background: #FAFAF8; }
   <!-- ══════════════ ENTRY FORM ══════════════ -->
   <div id="panel-entry">
 
-    <!-- Basic info -->
+    <!-- Consignment details -->
     <div class="card">
-      <div class="card-title">👤 Basic Information</div>
+      <div class="card-title">📋 Consignment Details</div>
       <div class="grid-2">
         <div class="field">
           <label>Date *</label>
           <input type="date" id="f-date" />
         </div>
         <div class="field">
-          <label>Vehicle Number *</label>
-          <input type="text" id="f-vnum" placeholder="e.g. MH40CM2452" style="font-family:'DM Mono',monospace;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" />
+          <label>Party Name</label>
+          <select id="f-party">
+            <option value="">Select party</option>
+            <option>AS Logistics</option>
+            <option>Grace Logistics</option>
+            <option>Neeta Enterprises</option>
+          </select>
         </div>
         <div class="field">
-          <label>Owner Name</label>
-          <input type="text" id="f-owner" placeholder="Owner full name" />
+          <label>Warehouse</label>
+          <input type="text" id="f-warehouse" placeholder="e.g. Berger Paints" />
+        </div>
+        <div class="field">
+          <label>Dispatch In</label>
+          <input type="text" id="f-dispatch" placeholder="e.g. Bhiwandi" />
+        </div>
+        <div class="field">
+          <label>LR No</label>
+          <input type="text" id="f-lrno" placeholder="Lorry receipt no." style="font-family:'DM Mono',monospace" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Vehicle -->
+    <div class="card">
+      <div class="card-title">🚚 Vehicle</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Vehicle Number *</label>
+          <input type="text" id="f-vnum" placeholder="e.g. MH40CM2452" style="font-family:'DM Mono',monospace;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" />
         </div>
         <div class="field">
           <label>Vehicle Name</label>
@@ -329,68 +373,60 @@ tbody tr:hover td { background: #FAFAF8; }
       </div>
     </div>
 
-    <!-- Trip details -->
+    <!-- Quantity & amount -->
     <div class="card">
-      <div class="card-title">🏠 Trip Details</div>
-      <div class="grid-2">
+      <div class="card-title">💰 Quantity & Amount</div>
+      <div class="grid-3">
         <div class="field">
-          <label>Godown Name</label>
-          <input type="text" id="f-godown" placeholder="e.g. Berger Paints" />
+          <label>Quantity</label>
+          <input type="number" id="f-qty" placeholder="0" min="0" step="any" oninput="recalcTotal()" />
         </div>
         <div class="field">
-          <label>Gate Pass Number</label>
-          <input type="text" id="f-gpass" placeholder="Gate pass no." />
-        </div>
-        <div class="field">
-          <label>Transaction Type</label>
-          <select id="f-ttype" onchange="onTypeOrWeightChange()">
-            <option value="">Select type</option>
-            <option>City</option>
-            <option>Local</option>
-            <option>Up Country</option>
-            <option>Other Town</option>
-            <option>Other</option>
+          <label>Unit</label>
+          <select id="f-unit" onchange="onUnitChange()">
+            <option value="">Select unit</option>
           </select>
         </div>
         <div class="field">
-          <label>Weight (KG)</label>
-          <input type="number" id="f-weight" placeholder="0" min="0" oninput="onTypeOrWeightChange()" />
+          <label>Rate (₹)</label>
+          <input type="number" id="f-rate" placeholder="0.00" min="0" step="0.01" oninput="recalcTotal()" />
         </div>
       </div>
-    </div>
 
-    <!-- Financials -->
-    <div class="card">
-      <div class="card-title">💰 Financials</div>
-      <div id="calc-banner" class="banner info" style="display:none">
-        <span class="banner-icon">⚡</span>
-        <span id="calc-banner-text"></span>
-      </div>
-      <div id="manual-banner" class="banner warn" style="display:none">
-        <span class="banner-icon">✏️</span>
-        <span id="manual-banner-text"></span>
-      </div>
-      <div class="grid-3">
-        <div class="field">
-          <label>Diesel (₹)</label>
-          <input type="number" id="f-diesel" placeholder="0.00" min="0" step="0.01" />
+      <!-- Add-new-unit panel -->
+      <div class="inset-panel" id="unit-add-wrap">
+        <div class="inset-title">➕ Add a new unit</div>
+        <div class="grid-2">
+          <div class="field">
+            <label>Unit name *</label>
+            <input type="text" id="f-unit-name" placeholder="e.g. Kilogram" oninput="previewUnit()" />
+          </div>
+          <div class="field">
+            <label>Short name / alias</label>
+            <input type="text" id="f-unit-alias" placeholder="e.g. Kg (optional)" oninput="previewUnit()" />
+          </div>
         </div>
-        <div class="field">
-          <label>Advance (₹)</label>
-          <input type="number" id="f-advance" placeholder="0.00" min="0" step="0.01" />
-        </div>
-        <div class="field">
-          <label>Driver Amount (₹)</label>
-          <input type="number" id="f-driver" placeholder="0.00" min="0" step="0.01" />
-          <span class="field-hint auto" id="driver-hint" style="display:none"></span>
+        <div class="field-hint" id="unit-preview">Will appear in the dropdown as: —</div>
+        <div class="inset-actions">
+          <button class="btn btn-ghost btn-sm" onclick="cancelAddUnit()">Cancel</button>
+          <button class="btn btn-primary btn-sm" id="unit-add-btn" onclick="addUnit()">Add unit</button>
         </div>
       </div>
-      <div style="margin-top:12px;max-width:240px">
+
+      <div class="grid-3" style="margin-top:12px">
         <div class="field">
-          <label>Owner Amount (₹)</label>
-          <input type="number" id="f-owneramount" placeholder="0.00" min="0" step="0.01" />
-          <span class="field-hint auto" id="owner-hint" style="display:none"></span>
+          <label>Total Amount (₹)</label>
+          <input type="number" id="f-total" class="auto-field" placeholder="0.00" min="0" step="0.01" oninput="onTotalInput()" />
+          <span class="field-hint auto" id="total-hint">Auto: Quantity × Rate</span>
         </div>
+        <div class="field">
+          <label>Load type</label>
+          <label class="check-box" id="ftl-box">
+            <input type="checkbox" id="f-ftl" onchange="onFtlChange()" />
+            <span>FTL — Full Truck Load</span>
+          </label>
+        </div>
+        <div></div>
       </div>
     </div>
 
@@ -411,41 +447,49 @@ tbody tr:hover td { background: #FAFAF8; }
   <!-- ══════════════ RECORDS PANEL ══════════════ -->
   <div id="panel-records" style="display:none">
 
-    <!-- Stats -->
+    <!-- KPIs -->
     <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Amount</div>
+        <div class="stat-value" id="s-amount">₹0</div>
+        <div class="stat-sub" id="s-amount-sub">across 0 records</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Quantity</div>
+        <div class="stat-value" id="s-qty">0</div>
+        <div class="stat-sub" id="s-qty-sub">—</div>
+      </div>
       <div class="stat-card">
         <div class="stat-label">Filtered records</div>
         <div class="stat-value" id="s-total">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Total weight</div>
-        <div class="stat-value" style="font-size:18px" id="s-weight">0</div>
-        <div class="stat-sub">KG</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Driver payouts</div>
-        <div class="stat-value" style="font-size:18px" id="s-driver">₹0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Owner payouts</div>
-        <div class="stat-value" style="font-size:18px" id="s-owner">₹0</div>
+        <div class="stat-sub" id="s-total-sub">of 0 total</div>
       </div>
     </div>
 
     <!-- Filters -->
     <div class="filters-bar">
       <div class="filters-row">
-        <div class="filter-field filter-search">
-          <label>Search</label>
-          <input type="text" id="fl-search" placeholder="Vehicle no., owner, godown…" oninput="applyFilters()" />
+        <div class="filter-field">
+          <label>Warehouse</label>
+          <select id="fl-warehouse" onchange="applyFilters()">
+            <option value="">All warehouses</option>
+          </select>
         </div>
         <div class="filter-field">
-          <label>Transaction type</label>
-          <select id="fl-type" onchange="applyFilters()">
-            <option value="">All types</option>
-            <option>City</option><option>Local</option>
-            <option>Up Country</option><option>Other Town</option><option>Other</option>
+          <label>Party name</label>
+          <select id="fl-party" onchange="applyFilters()">
+            <option value="">All parties</option>
           </select>
+        </div>
+        <div class="filter-field">
+          <label>Unit</label>
+          <select id="fl-unit" onchange="applyFilters()">
+            <option value="">All units</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>LR No</label>
+          <input type="text" id="fl-lrno" placeholder="LR no.…" oninput="applyFilters()" />
         </div>
         <div class="filter-field">
           <label>From date</label>
@@ -470,17 +514,17 @@ tbody tr:hover td { background: #FAFAF8; }
         <thead>
           <tr>
             <th onclick="toggleSort('date')" id="th-date">Date <span class="sort-arrow" id="sa-date">↕</span></th>
+            <th onclick="toggleSort('party_name')" id="th-party_name">Party <span class="sort-arrow" id="sa-party_name">↕</span></th>
+            <th onclick="toggleSort('warehouse')" id="th-warehouse">Warehouse <span class="sort-arrow" id="sa-warehouse">↕</span></th>
+            <th onclick="toggleSort('dispatch_in')" id="th-dispatch_in">Dispatch In <span class="sort-arrow" id="sa-dispatch_in">↕</span></th>
+            <th onclick="toggleSort('lr_no')" id="th-lr_no">LR No <span class="sort-arrow" id="sa-lr_no">↕</span></th>
             <th onclick="toggleSort('vehicle_number')" id="th-vehicle_number">Vehicle No. <span class="sort-arrow" id="sa-vehicle_number">↕</span></th>
-            <th onclick="toggleSort('owner_name')" id="th-owner_name">Owner <span class="sort-arrow" id="sa-owner_name">↕</span></th>
             <th onclick="toggleSort('vehicle_name')" id="th-vehicle_name">Vehicle <span class="sort-arrow" id="sa-vehicle_name">↕</span></th>
-            <th onclick="toggleSort('godown_name')" id="th-godown_name">Godown <span class="sort-arrow" id="sa-godown_name">↕</span></th>
-            <th onclick="toggleSort('transaction_type')" id="th-transaction_type">Type <span class="sort-arrow" id="sa-transaction_type">↕</span></th>
-            <th onclick="toggleSort('weight')" id="th-weight">Weight <span class="sort-arrow" id="sa-weight">↕</span></th>
-            <th onclick="toggleSort('driver_amount')" id="th-driver_amount">Driver Amt <span class="sort-arrow" id="sa-driver_amount">↕</span></th>
-            <th onclick="toggleSort('owner_amount')" id="th-owner_amount">Owner Amt <span class="sort-arrow" id="sa-owner_amount">↕</span></th>
-            <th onclick="toggleSort('diesel')" id="th-diesel">Diesel <span class="sort-arrow" id="sa-diesel">↕</span></th>
-            <th onclick="toggleSort('advance')" id="th-advance">Advance <span class="sort-arrow" id="sa-advance">↕</span></th>
-            <th onclick="toggleSort('gate_pass_number')" id="th-gate_pass_number">Gate Pass <span class="sort-arrow" id="sa-gate_pass_number">↕</span></th>
+            <th onclick="toggleSort('quantity')" id="th-quantity">Qty <span class="sort-arrow" id="sa-quantity">↕</span></th>
+            <th onclick="toggleSort('unit')" id="th-unit">Unit <span class="sort-arrow" id="sa-unit">↕</span></th>
+            <th onclick="toggleSort('rate')" id="th-rate">Rate <span class="sort-arrow" id="sa-rate">↕</span></th>
+            <th onclick="toggleSort('ftl')" id="th-ftl">FTL <span class="sort-arrow" id="sa-ftl">↕</span></th>
+            <th onclick="toggleSort('total_amount')" id="th-total_amount">Total Amount <span class="sort-arrow" id="sa-total_amount">↕</span></th>
           </tr>
         </thead>
         <tbody id="records-tbody">
@@ -496,11 +540,15 @@ tbody tr:hover td { background: #FAFAF8; }
 
 <script>
 // ── Config ─────────────────────────────────────────────────────────────────
-const RATES = {
-  'City':       { driver: 0.8,  owner: 1.0 },
-  'Local':      { driver: 0.5,  owner: 0.6 },
-  'Up Country': { driver: 1.8,  owner: 1.9 },
-};
+const PARTIES = ['AS Logistics', 'Grace Logistics', 'Neeta Enterprises'];
+
+// Built-in units — always available, even if the `units` table is unreachable.
+const BUILTIN_UNITS = [
+  { name: 'Case',     alias: '' },
+  { name: 'Box',      alias: '' },
+  { name: 'Kilogram', alias: 'Kg' },
+  { name: 'Bundle',   alias: '' },
+];
 
 // ── Hardcoded Supabase credentials — replace with your own ──
 const SUPABASE_URL = 'https://hmfdorjmustqzijnsjmg.supabase.co';
@@ -529,6 +577,9 @@ async function sbFetch(path, options = {}) {
 // ── State ───────────────────────────────────────────────────────────────────
 let allRecords = [];
 let displayedRecords = [];
+let units = BUILTIN_UNITS.map(u => ({ ...u }));
+let lastUnit = '';                       // remembers selection while add-panel is open
+let totalOverridden = false;             // true once Total Amount is typed in by hand
 let sortCol = 'date', sortDir = 'desc';
 
 // ── Tab switching ───────────────────────────────────────────────────────────
@@ -549,94 +600,239 @@ function onVehicleNameChange() {
   else document.getElementById('f-vname-other').value = '';
 }
 
-// ── Auto-calc amounts ───────────────────────────────────────────────────────
-function onTypeOrWeightChange() {
-  const type   = document.getElementById('f-ttype').value;
-  const weight = parseFloat(document.getElementById('f-weight').value) || 0;
-  const dInput = document.getElementById('f-driver');
-  const oInput = document.getElementById('f-owneramount');
-  const calcBanner   = document.getElementById('calc-banner');
-  const manualBanner = document.getElementById('manual-banner');
-  const dHint  = document.getElementById('driver-hint');
-  const oHint  = document.getElementById('owner-hint');
+// ── FTL toggle ──────────────────────────────────────────────────────────────
+function onFtlChange() {
+  const on = document.getElementById('f-ftl').checked;
+  document.getElementById('ftl-box').classList.toggle('on', on);
+}
 
-  if (RATES[type]) {
-    const r = RATES[type];
-    const dv = weight ? (weight * r.driver).toFixed(2) : '';
-    const ov = weight ? (weight * r.owner).toFixed(2)  : '';
-    dInput.value    = dv;
-    oInput.value    = ov;
-    dInput.readOnly = true;   oInput.readOnly = true;
-    dInput.classList.add('auto-field');
-    oInput.classList.add('auto-field');
-    dHint.textContent = 'Auto: weight × ' + r.driver;  dHint.style.display = '';
-    oHint.textContent = 'Auto: weight × ' + r.owner;   oHint.style.display = '';
-    calcBanner.style.display = '';
-    manualBanner.style.display = 'none';
-    document.getElementById('calc-banner-text').innerHTML =
-      '<strong>' + type + '</strong> rates — Driver ×' + r.driver + ', Owner ×' + r.owner +
-      (weight ? ' → ₹' + dv + ' / ₹' + ov : ' (enter weight to calculate)');
-  } else {
-    dInput.readOnly = false; oInput.readOnly = false;
-    dInput.classList.remove('auto-field');
-    oInput.classList.remove('auto-field');
-    dHint.style.display = 'none'; oHint.style.display = 'none';
-    calcBanner.style.display = 'none';
-    if (type) {
-      manualBanner.style.display = '';
-      document.getElementById('manual-banner-text').innerHTML =
-        '<strong>' + type + '</strong> — enter driver and owner amounts manually';
-    } else {
-      manualBanner.style.display = 'none';
-    }
+// ── Total Amount ────────────────────────────────────────────────────────────
+// Defaults to Quantity × Rate, but stays editable — typing your own figure
+// (a flat FTL charge, say) stops the auto-calc from overwriting it. Clearing
+// the field, or the "use auto" link, hands control back to the calculation.
+function round2(x) { return Math.round(x * 100) / 100; }
+
+function autoTotal() {
+  const qty  = parseFloat(document.getElementById('f-qty').value);
+  const rate = parseFloat(document.getElementById('f-rate').value);
+  return (isNaN(qty) || isNaN(rate)) ? null : round2(qty * rate);
+}
+
+function recalcTotal() {
+  if (!totalOverridden) {
+    const auto = autoTotal();
+    document.getElementById('f-total').value = auto == null ? '' : auto;
   }
+  updateTotalHint();
+}
+
+function onTotalInput() {
+  totalOverridden = document.getElementById('f-total').value.trim() !== '';
+  recalcTotal();
+}
+
+function useAutoTotal() {
+  totalOverridden = false;
+  recalcTotal();
+}
+
+function updateTotalHint() {
+  const el   = document.getElementById('f-total');
+  const hint = document.getElementById('total-hint');
+  el.classList.toggle('auto-field', !totalOverridden);
+
+  if (!totalOverridden) {
+    hint.className   = 'field-hint auto';
+    hint.textContent = 'Auto: Quantity × Rate';
+    return;
+  }
+  const auto  = autoTotal();
+  const typed = parseFloat(el.value);
+  const parts = ['Manual amount'];
+  if (auto != null && (isNaN(typed) || round2(typed) !== auto)) {
+    parts.push('Quantity × Rate = ' + fmtMoney(auto));
+  }
+  parts.push('<span class="link" onclick="useAutoTotal()">use auto</span>');
+  hint.className = 'field-hint manual';
+  hint.innerHTML = parts.join(' · ');
+}
+
+// ── Units ───────────────────────────────────────────────────────────────────
+// Display format: "Alias - Name" when an alias exists, else just "Name".
+function unitLabel(u)      { return u.alias ? u.alias + ' - ' + u.name : u.name; }
+function findUnit(name)    { const k = String(name || '').toLowerCase();
+                             return units.find(u => u.name.toLowerCase() === k) || null; }
+function unitShort(name)   { const u = findUnit(name); return u ? (u.alias || u.name) : (name || '—'); }
+function unitFull(name)    { const u = findUnit(name); return u ? unitLabel(u) : (name || ''); }
+
+function cleanSpace(s) { return String(s || '').replace(/\s+/g, ' ').trim(); }
+
+// Trim, collapse inner spaces, then Proper Case each word ("kg" → "Kg", "METRIC TON" → "Metric Ton").
+function properCase(s) {
+  return cleanSpace(s)
+    .toLowerCase()
+    .replace(/(^|[\s\-\/.(])([a-z0-9])/g, (m, sep, ch) => sep + ch.toUpperCase());
+}
+
+// Aliases are short codes where capitals carry meaning, so a single all-caps
+// word of 4 chars or fewer is kept as typed ("MT", "PCS", "KL"). Anything else
+// gets normal proper casing ("kg" → "Kg", "metric ton" → "Metric Ton").
+function properAlias(s) {
+  const t = cleanSpace(s);
+  if (t && t.length <= 4 && !/\s/.test(t) && t === t.toUpperCase() && /[A-Z]/.test(t)) return t;
+  return properCase(t);
+}
+
+function sortUnits() {
+  units.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function renderUnitOptions() {
+  const sel = document.getElementById('f-unit');
+  const keep = sel.value && sel.value !== '__add__' ? sel.value : lastUnit;
+  sel.innerHTML =
+    '<option value="">Select unit</option>' +
+    units.map(u => `<option value="${esc(u.name)}">${esc(unitLabel(u))}</option>`).join('') +
+    '<option value="__add__">➕ Add new unit…</option>';
+  if (keep && findUnit(keep)) sel.value = findUnit(keep).name;
+  lastUnit = sel.value;
+}
+
+function onUnitChange() {
+  const sel = document.getElementById('f-unit');
+  if (sel.value === '__add__') {
+    sel.value = lastUnit;                       // don't leave "Add new unit…" showing
+    openAddUnit();
+    return;
+  }
+  lastUnit = sel.value;
+  closeAddUnit();
+}
+
+function openAddUnit() {
+  document.getElementById('unit-add-wrap').style.display = 'block';
+  document.getElementById('f-unit-name').value  = '';
+  document.getElementById('f-unit-alias').value = '';
+  previewUnit();
+  document.getElementById('f-unit-name').focus();
+}
+function closeAddUnit() { document.getElementById('unit-add-wrap').style.display = 'none'; }
+function cancelAddUnit() { closeAddUnit(); }
+
+function previewUnit() {
+  const name  = properCase(document.getElementById('f-unit-name').value);
+  const alias = properAlias(document.getElementById('f-unit-alias').value);
+  const el = document.getElementById('unit-preview');
+  el.textContent = 'Will appear in the dropdown as: ' +
+    (name ? unitLabel({ name, alias }) : '—');
+}
+
+async function addUnit() {
+  const name  = properCase(document.getElementById('f-unit-name').value);
+  const alias = properAlias(document.getElementById('f-unit-alias').value);
+  if (!name) { toast('Enter the unit name.', 'error'); return; }
+
+  // Duplicate check across both names and aliases, case-insensitive.
+  const taken = new Set();
+  units.forEach(u => { taken.add(u.name.toLowerCase()); if (u.alias) taken.add(u.alias.toLowerCase()); });
+  if (taken.has(name.toLowerCase()) || (alias && taken.has(alias.toLowerCase()))) {
+    const existing = findUnit(name) ||
+      units.find(u => (u.alias || '').toLowerCase() === (alias || ' ').toLowerCase());
+    toast('That unit already exists' + (existing ? ' as "' + unitLabel(existing) + '".' : '.'), 'error');
+    if (existing) { document.getElementById('f-unit').value = existing.name; lastUnit = existing.name; closeAddUnit(); }
+    return;
+  }
+
+  const btn = document.getElementById('unit-add-btn');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  try {
+    await sbFetch('/units', {
+      method: 'POST',
+      body: JSON.stringify({ name, alias: alias || null }),
+      prefer: 'return=representation',
+    });
+    units.push({ name, alias });
+    sortUnits();
+    renderUnitOptions();
+    refreshFilterOptions();
+    document.getElementById('f-unit').value = name;
+    lastUnit = name;
+    closeAddUnit();
+    toast('Unit "' + unitLabel({ name, alias }) + '" added.', 'success');
+  } catch (e) {
+    toast('Could not save the unit — make sure the `units` table exists. ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Add unit';
+  }
+}
+
+async function loadUnits() {
+  try {
+    const rows = await sbFetch('/units?order=name.asc');
+    const seen = new Set(units.map(u => u.name.toLowerCase()));
+    rows.forEach(r => {
+      const name = properCase(r.name);
+      if (!name || seen.has(name.toLowerCase())) return;
+      seen.add(name.toLowerCase());
+      units.push({ name, alias: properAlias(r.alias || '') });
+    });
+    sortUnits();
+  } catch (e) {
+    console.warn('Custom units unavailable (using built-ins only):', e.message);
+  }
+  renderUnitOptions();
+  refreshFilterOptions();
 }
 
 // ── Clear form ──────────────────────────────────────────────────────────────
 function clearForm() {
-  ['f-date','f-vnum','f-owner','f-godown','f-gpass','f-weight',
-   'f-diesel','f-advance','f-driver','f-owneramount','f-remarks','f-vname-other']
+  ['f-vnum','f-warehouse','f-dispatch','f-lrno','f-qty','f-rate','f-total',
+   'f-remarks','f-vname-other']
     .forEach(id => { document.getElementById(id).value = ''; });
-  document.getElementById('f-vname').value  = '';
-  document.getElementById('f-ttype').value  = '';
+  document.getElementById('f-party').value = '';
+  document.getElementById('f-vname').value = '';
+  document.getElementById('f-unit').value  = '';
+  lastUnit = '';
+  document.getElementById('f-ftl').checked = false;
+  onFtlChange();
+  totalOverridden = false;
+  recalcTotal();
   document.getElementById('vname-other-wrap').style.display = 'none';
-  ['f-driver','f-owneramount'].forEach(id => {
-    const el = document.getElementById(id);
-    el.readOnly = false; el.classList.remove('auto-field');
-  });
-  document.getElementById('driver-hint').style.display  = 'none';
-  document.getElementById('owner-hint').style.display   = 'none';
-  document.getElementById('calc-banner').style.display  = 'none';
-  document.getElementById('manual-banner').style.display= 'none';
+  closeAddUnit();
   document.getElementById('f-date').value = getTodayStr();
 }
 
 // ── Save record ─────────────────────────────────────────────────────────────
 async function saveRecord() {
-  const date  = document.getElementById('f-date').value;
-  const vnum  = document.getElementById('f-vnum').value.trim();
+  const date = document.getElementById('f-date').value;
+  const vnum = document.getElementById('f-vnum').value.trim();
   if (!date || !vnum) { toast('Date and vehicle number are required.', 'error'); return; }
+
   const vnSel = document.getElementById('f-vname').value;
   const vname = vnSel === 'Other' ? document.getElementById('f-vname-other').value.trim() : vnSel;
   if (vnSel === 'Other' && !vname) { toast('Please enter the vehicle name.', 'error'); return; }
+
+  const qty  = n('f-qty');
+  const unit = v('f-unit');
+  if (qty && !unit) { toast('Select a unit for the quantity.', 'error'); return; }
 
   const btn = document.getElementById('save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
 
   const payload = {
     date,
-    vehicle_number:   vnum,
-    owner_name:       v('f-owner')    || null,
-    vehicle_name:     vname           || null,
-    godown_name:      v('f-godown')   || null,
-    gate_pass_number: v('f-gpass')    || null,
-    transaction_type: v('f-ttype')    || null,
-    weight:           n('f-weight'),
-    diesel:           n('f-diesel'),
-    advance:          n('f-advance'),
-    driver_amount:    n('f-driver'),
-    owner_amount:     n('f-owneramount'),
-    remarks:          v('f-remarks')  || null,
+    party_name:     v('f-party'),
+    warehouse:      v('f-warehouse'),
+    dispatch_in:    v('f-dispatch'),
+    lr_no:          v('f-lrno'),
+    vehicle_number: vnum,
+    vehicle_name:   vname || null,
+    quantity:       qty,
+    unit:           unit,
+    rate:           n('f-rate'),
+    ftl:            document.getElementById('f-ftl').checked,
+    total_amount:   n('f-total'),
+    remarks:        v('f-remarks'),
   };
 
   try {
@@ -645,6 +841,7 @@ async function saveRecord() {
     });
     allRecords.unshift(saved);
     updateTotalCount();
+    refreshFilterOptions();
     clearForm();
     toast('Record saved successfully!', 'success');
   } catch (e) {
@@ -654,8 +851,8 @@ async function saveRecord() {
   }
 }
 
-function v(id)  { const val = document.getElementById(id).value.trim(); return val || null; }
-function n(id)  { const val = parseFloat(document.getElementById(id).value); return isNaN(val) ? null : val; }
+function v(id) { const val = document.getElementById(id).value.trim(); return val || null; }
+function n(id) { const val = parseFloat(document.getElementById(id).value); return isNaN(val) ? null : val; }
 
 // ── Fetch records ───────────────────────────────────────────────────────────
 async function fetchRecords() {
@@ -664,10 +861,11 @@ async function fetchRecords() {
   try {
     allRecords = await sbFetch('/vehicle_transactions?order=date.desc');
     updateTotalCount();
+    refreshFilterOptions();
     applyFilters();
   } catch (e) {
     document.getElementById('records-tbody').innerHTML =
-      '<tr><td colspan="10" class="empty-state">⚠️ Could not load records. Check Supabase config above.</td></tr>';
+      '<tr><td colspan="12" class="empty-state">⚠️ Could not load records. Check the Supabase config.</td></tr>';
   }
 }
 
@@ -676,42 +874,95 @@ function updateTotalCount() {
   document.getElementById('tab-badge').textContent   = allRecords.length;
 }
 
+// ── Filter option lists ─────────────────────────────────────────────────────
+function fillSelect(id, values, allLabel, labelFn) {
+  const sel  = document.getElementById(id);
+  const keep = sel.value;
+  sel.innerHTML = `<option value="">${allLabel}</option>` +
+    values.map(v2 => `<option value="${esc(v2)}">${esc(labelFn ? labelFn(v2) : v2)}</option>`).join('');
+  if (keep && values.includes(keep)) sel.value = keep;
+}
+
+function refreshFilterOptions() {
+  const distinct = key => [...new Set(
+    allRecords.map(r => (r[key] || '').trim()).filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b));
+
+  fillSelect('fl-warehouse', distinct('warehouse'), 'All warehouses');
+
+  const parties = [...new Set([...PARTIES, ...distinct('party_name')])]
+    .sort((a, b) => a.localeCompare(b));
+  fillSelect('fl-party', parties, 'All parties');
+
+  // Registry names win over whatever casing a record happens to hold.
+  const unitNames = [];
+  const seenUnits = new Set();
+  [...units.map(u => u.name), ...distinct('unit')].forEach(u => {
+    const k = u.toLowerCase();
+    if (seenUnits.has(k)) return;
+    seenUnits.add(k);
+    unitNames.push(u);
+  });
+  unitNames.sort((a, b) => a.localeCompare(b));
+  fillSelect('fl-unit', unitNames, 'All units', unitFull);
+}
+
 // ── Filters & sort ──────────────────────────────────────────────────────────
 function clearFilters() {
-  ['fl-search','fl-from','fl-to'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('fl-type').value = '';
+  ['fl-lrno','fl-from','fl-to'].forEach(id => document.getElementById(id).value = '');
+  ['fl-warehouse','fl-party','fl-unit'].forEach(id => document.getElementById(id).value = '');
   applyFilters();
 }
 
 function applyFilters() {
-  const search  = document.getElementById('fl-search').value.toLowerCase();
-  const type    = document.getElementById('fl-type').value;
-  const dateFrom= document.getElementById('fl-from').value;
-  const dateTo  = document.getElementById('fl-to').value;
+  const warehouse = document.getElementById('fl-warehouse').value;
+  const party     = document.getElementById('fl-party').value;
+  const unit      = document.getElementById('fl-unit').value;
+  const lrno      = document.getElementById('fl-lrno').value.trim().toLowerCase();
+  const dateFrom  = document.getElementById('fl-from').value;
+  const dateTo    = document.getElementById('fl-to').value;
+  const unitKey   = unit.toLowerCase();
 
-  let rows = allRecords.filter(r => {
-    if (search && !['vehicle_number','owner_name','vehicle_name','godown_name']
-      .some(k => (r[k] || '').toLowerCase().includes(search))) return false;
-    if (type && r.transaction_type !== type) return false;
-    if (dateFrom && r.date < dateFrom) return false;
-    if (dateTo   && r.date > dateTo)   return false;
+  const rows = allRecords.filter(r => {
+    if (warehouse && (r.warehouse  || '') !== warehouse) return false;
+    if (party     && (r.party_name || '') !== party)     return false;
+    if (unit      && String(r.unit || '').toLowerCase() !== unitKey) return false;
+    if (lrno      && !String(r.lr_no || '').toLowerCase().includes(lrno)) return false;
+    if (dateFrom  && dateOf(r) < dateFrom) return false;
+    if (dateTo    && dateOf(r) > dateTo)   return false;
     return true;
   });
 
-  rows.sort((a, b) => {
-    let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
-    if (typeof av === 'number' || !isNaN(parseFloat(av))) {
-      av = parseFloat(av) || 0; bv = parseFloat(bv) || 0;
-      return sortDir === 'asc' ? av - bv : bv - av;
-    }
-    return sortDir === 'asc'
-      ? String(av).localeCompare(String(bv))
-      : String(bv).localeCompare(String(av));
-  });
+  rows.sort(compareRows);
 
   displayedRecords = rows;
   renderTable();
   updateStats();
+}
+
+const NUM_COLS  = new Set(['quantity', 'rate', 'total_amount']);
+const BOOL_COLS = new Set(['ftl']);
+
+function compareRows(a, b) {
+  const c = sortCol;
+  if (NUM_COLS.has(c)) {
+    const av = parseFloat(a[c]), bv = parseFloat(b[c]);
+    const an = isNaN(av) ? null : av, bn = isNaN(bv) ? null : bv;
+    if (an === null && bn === null) return 0;
+    if (an === null) return 1;                 // blanks always last
+    if (bn === null) return -1;
+    return sortDir === 'asc' ? an - bn : bn - an;
+  }
+  if (BOOL_COLS.has(c)) {
+    const av = a[c] ? 1 : 0, bv = b[c] ? 1 : 0;
+    return sortDir === 'asc' ? av - bv : bv - av;
+  }
+  const av = a[c] == null ? '' : String(a[c]);
+  const bv = b[c] == null ? '' : String(b[c]);
+  if (!av && !bv) return 0;
+  if (!av) return 1;
+  if (!bv) return -1;
+  return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
 }
 
 function toggleSort(col) {
@@ -728,28 +979,29 @@ function toggleSort(col) {
   applyFilters();
 }
 
-// ── Render table ────────────────────────────────────────────────────────────
-function pillClass(type) {
-  return { City:'pill-city', Local:'pill-local', 'Up Country':'pill-upcountry',
-           'Other Town':'pill-othertown', Other:'pill-other' }[type] || 'pill-other';
+// ── Formatting ──────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g,
+    ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
 }
+function dateOf(r) { return String(r.date || '').split('T')[0]; }
 function fmtDate(d) {
   if (!d) return '—';
   // Supabase returns YYYY-MM-DD — take only the date part (strip time if present)
-  const datePart = String(d).split('T')[0];
-  const parts = datePart.split('-');
+  const parts = String(d).split('T')[0].split('-');
   if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
   return d;
 }
-
-function fmtMoney(n) {
-  if (n == null || n === '') return '—';
-  return '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+function fmtMoney(n2) {
+  if (n2 == null || n2 === '') return '—';
+  return '₹' + Number(n2).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 }
-function fmtWeight(n) {
-  return n ? Number(n).toLocaleString('en-IN') + ' KG' : '—';
+function fmtNum(n2) {
+  if (n2 == null || n2 === '') return '—';
+  return Number(n2).toLocaleString('en-IN', { maximumFractionDigits: 3 });
 }
 
+// ── Render table ────────────────────────────────────────────────────────────
 function renderTable() {
   const tbody = document.getElementById('records-tbody');
   if (!displayedRecords.length) {
@@ -759,29 +1011,45 @@ function renderTable() {
   tbody.innerHTML = displayedRecords.map(r => `
     <tr>
       <td>${fmtDate(r.date)}</td>
-      <td><span class="mono">${r.vehicle_number || '—'}</span></td>
-      <td>${r.owner_name || '—'}</td>
-      <td>${r.vehicle_name || '—'}</td>
-      <td>${r.godown_name || '—'}</td>
-      <td>${r.transaction_type ? `<span class="pill ${pillClass(r.transaction_type)}">${r.transaction_type}</span>` : '—'}</td>
-      <td>${fmtWeight(r.weight)}</td>
-      <td style="font-weight:500">${fmtMoney(r.driver_amount)}</td>
-      <td style="font-weight:500">${fmtMoney(r.owner_amount)}</td>
-      <td>${fmtMoney(r.diesel)}</td>
-      <td>${fmtMoney(r.advance)}</td>
-      <td>${r.gate_pass_number || '—'}</td>
+      <td>${esc(r.party_name) || '—'}</td>
+      <td>${esc(r.warehouse) || '—'}</td>
+      <td>${esc(r.dispatch_in) || '—'}</td>
+      <td><span class="mono">${esc(r.lr_no) || '—'}</span></td>
+      <td><span class="mono">${esc(r.vehicle_number) || '—'}</span></td>
+      <td>${esc(r.vehicle_name) || '—'}</td>
+      <td class="num">${fmtNum(r.quantity)}</td>
+      <td title="${esc(unitFull(r.unit))}">${esc(r.unit ? unitShort(r.unit) : '—')}</td>
+      <td class="num">${fmtMoney(r.rate)}</td>
+      <td>${r.ftl ? '<span class="pill pill-yes">FTL</span>' : '—'}</td>
+      <td class="num" style="font-weight:500">${fmtMoney(r.total_amount)}</td>
     </tr>`).join('');
 }
 
+// ── KPIs ────────────────────────────────────────────────────────────────────
 function updateStats() {
   const total  = displayedRecords.length;
-  const weight = displayedRecords.reduce((s,r) => s + (parseFloat(r.weight) || 0), 0);
-  const driver = displayedRecords.reduce((s,r) => s + (parseFloat(r.driver_amount) || 0), 0);
-  const owner  = displayedRecords.reduce((s,r) => s + (parseFloat(r.owner_amount)  || 0), 0);
-  document.getElementById('s-total').textContent  = total.toLocaleString('en-IN');
-  document.getElementById('s-weight').textContent = weight.toLocaleString('en-IN');
-  document.getElementById('s-driver').textContent = '₹' + Math.round(driver).toLocaleString('en-IN');
-  document.getElementById('s-owner').textContent  = '₹' + Math.round(owner).toLocaleString('en-IN');
+  const amount = displayedRecords.reduce((s, r) => s + (parseFloat(r.total_amount) || 0), 0);
+  const qty    = displayedRecords.reduce((s, r) => s + (parseFloat(r.quantity)     || 0), 0);
+
+  // Quantity across mixed units doesn't add up meaningfully — show the per-unit split.
+  const byUnit = {};
+  displayedRecords.forEach(r => {
+    const q = parseFloat(r.quantity) || 0;
+    if (!q) return;
+    const k = (r.unit || '').trim() || '(no unit)';
+    byUnit[k] = (byUnit[k] || 0) + q;
+  });
+  const parts = Object.entries(byUnit).sort((a, b) => b[1] - a[1]);
+  const shown = parts.slice(0, 3).map(([k, q]) =>
+    fmtNum(q) + ' ' + (k === '(no unit)' ? k : unitShort(k))).join(' · ');
+  const more  = parts.length > 3 ? ' · +' + (parts.length - 3) + ' more' : '';
+
+  document.getElementById('s-amount').textContent     = '₹' + Math.round(amount).toLocaleString('en-IN');
+  document.getElementById('s-amount-sub').textContent = 'across ' + total.toLocaleString('en-IN') + (total === 1 ? ' record' : ' records');
+  document.getElementById('s-qty').textContent        = fmtNum(qty) === '—' ? '0' : fmtNum(qty);
+  document.getElementById('s-qty-sub').textContent    = parts.length ? shown + more : '—';
+  document.getElementById('s-total').textContent      = total.toLocaleString('en-IN');
+  document.getElementById('s-total-sub').textContent  = 'of ' + allRecords.length.toLocaleString('en-IN') + ' total';
 
   const btn = document.getElementById('export-btn');
   btn.textContent = `⬇ Export Excel (${total})`;
@@ -792,25 +1060,25 @@ function updateStats() {
 function exportExcel() {
   if (!displayedRecords.length) return;
   const rows = displayedRecords.map(r => ({
-    'Date':              r.date || '',
-    'Vehicle Number':    r.vehicle_number || '',
-    'Owner Name':        r.owner_name || '',
-    'Vehicle Name':      r.vehicle_name || '',
-    'Godown Name':       r.godown_name || '',
-    'Gate Pass Number':  r.gate_pass_number || '',
-    'Transaction Type':  r.transaction_type || '',
-    'Weight (KG)':       r.weight ?? '',
-    'Diesel':            r.diesel ?? '',
-    'Advance':           r.advance ?? '',
-    'Driver Amount':     r.driver_amount ?? '',
-    'Owner Amount':      r.owner_amount ?? '',
-    'Remarks':           r.remarks || '',
+    'Date':           dateOf(r),
+    'Party Name':     r.party_name || '',
+    'Warehouse':      r.warehouse || '',
+    'Dispatch In':    r.dispatch_in || '',
+    'LR No':          r.lr_no || '',
+    'Vehicle Number': r.vehicle_number || '',
+    'Vehicle Name':   r.vehicle_name || '',
+    'Quantity':       r.quantity ?? '',
+    'Unit':           r.unit ? unitFull(r.unit) : '',
+    'Rate':           r.rate ?? '',
+    'FTL':            r.ftl ? 'Yes' : 'No',
+    'Total Amount':   r.total_amount ?? '',
+    'Remarks':        r.remarks || '',
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = Object.keys(rows[0]).map(() => ({ wch: 18 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
-  XLSX.writeFile(wb, 'Vehicle_Transactions_' + new Date().toISOString().split('T')[0] + '.xlsx');
+  XLSX.writeFile(wb, 'Vehicle_Transactions_' + getTodayStr() + '.xlsx');
   toast('Exported ' + rows.length + ' records.', 'success');
 }
 
@@ -832,6 +1100,8 @@ function getTodayStr() {
 
 // ── Init ────────────────────────────────────────────────────────────────────
 document.getElementById('f-date').value = getTodayStr();
+renderUnitOptions();
+loadUnits();
 fetchRecords();
 </script>
 </body>
